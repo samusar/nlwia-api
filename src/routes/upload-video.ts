@@ -5,6 +5,7 @@ import { pipeline } from 'stream';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { promisify } from 'util';
+import { prisma } from "../lib/prisma";
 
 const pump = promisify(pipeline);
 
@@ -28,7 +29,7 @@ export async function uploadVideo(app: FastifyInstance){
       return reply.status(400).send({ error: 'Invalid input type. Should be must .mp3 extension' });
     }
 
-    const fileBaseName = path.basename(data.fieldname, extension);
+    const fileBaseName = path.basename(data.filename, extension);
 
     const fileUploadName = `${fileBaseName}-${randomUUID()}${extension}`;
 
@@ -36,6 +37,15 @@ export async function uploadVideo(app: FastifyInstance){
 
     await pump(data.file, fs.createWriteStream(uploadDestination));
 
-    return reply.send();
+    const video = await prisma.video.create({
+      data: {
+        name: data.filename,
+        path: uploadDestination,
+      }
+    });
+
+    return {
+      video,
+    }
   });
 }
